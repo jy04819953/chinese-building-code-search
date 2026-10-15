@@ -36,7 +36,7 @@ def parse_toc(md_text: str) -> list[dict]:
     if toc_start is None:
         return []
     # 终点:① 优先找英文 Contents / 重复目录标题 ② 兜底 200 行(大型规范目录超过 50 行的很多)
-    # 修订:之前 toc_end 永远 50 行(GB-50017-2017 钢结构目录 112 行,§10.4 后全漏!17 本规范目录 >50 行)
+    # 注意:目录段长度因规范而异(实测有的目录上百行),固定行数上限会漏抽
     # 现在按 ## Contents / ## 目 录 终止,兜底 200 行
     toc_end = None
     for j, line in enumerate(lines[toc_start + 1:], start=toc_start + 1):

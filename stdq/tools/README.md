@@ -3,7 +3,8 @@
 按需运行的运维/质检脚本，不属于日常查询路径。统一用法：`python -m stdq.tools.<名字> [参数]`。带 argparse 的可加 `--help` 看用法；
 少数只接文件路径的脚本（`detect_clause_drop` / `fix_concat_headers` / `mineru_postprocess` / `postprocess_md`）**直接读源码顶部的用法说明**——给它们 `--help` 会被当成文件路径。
 
-> 先预演、看清差异、再写盘：改 MD 的脚本默认 dry-run，只有 `--apply` 才落盘；落盘前自动备份。
+> 先预演、看清差异、再写盘：**多数**改 MD 的脚本默认只报告、加 `--apply` 才落盘，落盘前自动备份；
+> ⚠️ **例外**：`fix_truncated_clauses` 默认就是写库模式（要看预览请显式加 `--dry-run`）。
 
 ## 入库前排查
 
@@ -16,11 +17,11 @@
 | 工具 | 作用 | 常用参数 |
 |---|---|---|
 | `verify_md_vs_db` | 入库对账：把 MD 重解析结果和库里逐条比，揪出漏抽/截断/多余 | `--json --limit --postprocess --quiet` |
-| `stdq_check` | stdq check — 条文号连续性检查（带跳号自动分类） | `--json --no-classify --only-real` |
+| `stdq_check` | 条文号连续性检查（带跳号自动分类，只挑「真漏抽」动手） | `--json --no-classify --only-real` |
 | `apx_crosscheck` | 全库附录抽取稳定性交叉验证： | — |
 | `scan_ocr_anomalies` | OCR 字符体检（入库硬闸门）——扫中文规范 MD 与库内文本里的假名 + 表头/符号变体。 | — |
 
-## MD 修复（先预演，加 --apply 才写盘）
+## MD 修复（多数先预演，加 --apply 才写盘）
 
 | 工具 | 作用 | 常用参数 |
 |---|---|---|
@@ -41,7 +42,7 @@
 | `backfill_appendix` | 附录条目「定点补库」：只 INSERT 新增的附录条目，不动现有条文、不 rebuild。 | — |
 | `backfill_apx_sections` | 补附录「节级」(X.N，如 D.1 一般规定) 到章节目录 clause_chapters，父 = 附录X。 | — |
 | `splice_appendix` | 把"缺的附录"从局部转换出来的 MD 拼回规范主 MD。 | — |
-| `backfill_chapters` | 一次性回填脚本:给 standards.db 里所有已有规范补全 clause_chapters 表。 | `--apply --dry-run --fix-orphans --purge` |
+| `backfill_chapters` | 给库里已有规范补全章节目录（`clause_chapters` 表） | `--apply --dry-run --fix-orphans --purge` |
 
 ## 转换后处理（PDF→MD 之后）
 

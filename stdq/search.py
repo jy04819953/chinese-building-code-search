@@ -578,7 +578,7 @@ def _abolished_whole_in_library(std_c):
     """返回 {target_std: source_std}:被整本废止且替代新版也在库的映射。
 
     立:正常搜索应屏蔽"被整本废止 + 替代新版在库"的旧版,
-    除非搜索显式点名该旧版。当前库 0 对,仅将来 50034-2013(被 50034-2024 整本废止)生效。
+    除非搜索显式点名该旧版。
     """
     try:
         inlib = {r[0] for r in std_c.execute('SELECT code FROM standards').fetchall()}

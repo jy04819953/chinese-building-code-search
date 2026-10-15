@@ -19,5 +19,5 @@ embed = ["sentence-transformers>=2.2", "numpy>=1.24"]
 stdq = "stdq.cli:main"
 
 [tool.setuptools]
-# 显式列包，避免把 deploy/ 等目录当顶层包
-packages = ["stdq", "stdq.parser"]
+# 显式列包，避免把 deploy/ 等目录当顶层包（tools 也要列，否则非 editable 安装后工具不可用）
+packages = ["stdq", "stdq.parser", "stdq.tools"]

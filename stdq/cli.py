@@ -208,7 +208,6 @@ def main():
     p_search.add_argument('--no-daemon', action='store_true', help='跳过守护进程，直接加载模型')
     p_search.add_argument('--type', choices=['住宅','公建','工业','通用'], help='按建筑类型过滤（仅返回适用于该类型的条文);"通用"等价于不传(=不限类型)')
     # 召回范围开关
-    p_search.add_argument('--standard', action='store_true', help='只召规范条文(标准库)')
     p_search.add_argument('--table-style', choices=['markdown','compact','raw'], default='markdown',
                           help='含表格的条文输出风格（默认 markdown，适合能渲染 Markdown 的客户端；compact 适合纯文本终端长表折叠）')
 
@@ -337,7 +336,6 @@ def main():
                 type_filter = getattr(args, 'type', None)
                 if type_filter == '通用':
                     type_filter = None
-                scope = 'standard'
 
                 _rows, _via_daemon = search_auto(
                     args.query,

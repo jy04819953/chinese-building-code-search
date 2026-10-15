@@ -41,8 +41,8 @@ def get_db():
 def ensure_schema(c):
     """首次建库时创建核心表(幂等)。
 
-    新用户 clone 仓库后直接 `stdq.py rebuild` 即可,无需手工建表或预置空库。
-    表结构与 schema/init_db.sql 保持一致;已存在的表不会被改动。
+    新用户 clone 仓库后直接 `stdq rebuild` 即可,无需手工建表或预置空库。
+    表结构由本函数维护;已存在的表不会被改动。
     """
     c.execute("""CREATE TABLE IF NOT EXISTS standards (
         code TEXT PRIMARY KEY, name TEXT, md_file TEXT,
@@ -53,13 +53,8 @@ def ensure_schema(c):
         is_strong INTEGER DEFAULT 0, has_note INTEGER DEFAULT 0, note TEXT, themes TEXT,
         line_in_md INTEGER, is_strict INTEGER DEFAULT 0,
         applicable_type TEXT NOT NULL DEFAULT '通用'
-            CHECK(applicable_type IN ('通用','住宅','公建','工业','民用')),
+            CHECK(applicable_type IN ('通用','住宅','公建','工业')),
         FOREIGN KEY (std_code) REFERENCES standards(code))""")
-    c.execute("""CREATE TABLE IF NOT EXISTS errors (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL,
-        wrong_answer TEXT NOT NULL, wrong_reason TEXT, correct_answer TEXT NOT NULL,
-        correct_std TEXT, lesson TEXT NOT NULL, source_question TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
 
 def _backup_db_before_rebuild():
     """重建前自动备份数据库。备份到 backups/ 子目录,旧备份保留。"""
@@ -230,8 +225,7 @@ def _check_embed_sync():
     c2.execute('SELECT COUNT(*) FROM clauses')
     db_count = c2.fetchone()[0]
     db2.close()
-    # C1 修复:ids.npy 含规范库(条文正数 + 错题负数 + 解读 9000000+),
-    # 原 len(ids) 永远 ≠ db_count(20150 vs 18877) → 每次 rebuild 都误报"索引过期"。
+    # 索引里的 id 数应与库中条文数一致;不一致说明库改过而向量未重建。
     # 只统计正数 ID(条文部分)与 clauses 表比。
     clause_id_count = int((ids > 0).sum())
     if clause_id_count != db_count:

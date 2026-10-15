@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """把 MD 里"被拆成多行"的条文正文并回一行（治 rebuild 会退化的根）
 
-背景：`verify_md_vs_db.py` 报「不一致、库比解析长」的那批（全库 278 条），是 MD 里条文正文
+背景：`verify_md_vs_db.py` 报「不一致、库比解析长」的那批，是 MD 里条文正文
       被换行/空行/公式/表格/注拆成多行，解析器只收到第一行（或前几行）。库里完整是当年
       `fix_truncated_clauses.py` 直接补库的结果，MD 从没跟着改 ⇒ 整库 rebuild 又会退回断句。
 
@@ -18,7 +18,6 @@
 输出 /tmp/md_join_plan.json
 """
 import argparse
-import importlib.util
 import json
 import os
 import re
@@ -27,10 +26,10 @@ import sqlite3
 import sys
 from datetime import datetime
 from ..consts import STANDARDS_DIR
+from ..parser.clauses import extract_clauses
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-DB = 'standards.db'
+
+DB = os.path.join(STANDARDS_DIR, 'standards.db')
 OUT = '/tmp/md_join_plan.json'
 CL = re.compile(r'^(?:#{1,6}\s*)?(?:第\s*)?'
                 r'(\d{1,2}\.\d{1,2}(?:\.\d{1,2}){0,3}'
@@ -39,11 +38,6 @@ CL = re.compile(r'^(?:#{1,6}\s*)?(?:第\s*)?'
                 r'(?:\s*条)?[\s\u3000]*(.*)$')
 
 
-def load_stdq():
-    spec = importlib.util.spec_from_file_location('stdq', os.path.join(HERE, 'stdq.py'))
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
 
 
 def norm(s):
@@ -88,7 +82,6 @@ def main():
     ap.add_argument('--min-gap', type=int, default=200)
     ap.add_argument('--apply', action='store_true')
     args = ap.parse_args()
-    stdq = load_stdq()
     con = sqlite3.connect(DB, isolation_level=None)
     cur = con.cursor()
     stds = cur.execute('SELECT code, md_file FROM standards ORDER BY code').fetchall()
@@ -101,7 +94,7 @@ def main():
             continue
         text = open(mdf, encoding='utf-8', errors='replace').read()
         base = os.path.basename(mdf)
-        got = dict(stdq.extract_clauses(text, base))
+        got = dict(extract_clauses(text, base))
         have = {r[0]: r[1] for r in cur.execute(
             'SELECT clause_no, content FROM clauses WHERE std_code=?', (code,))}
         targets = [no for no, db in have.items()
@@ -122,7 +115,7 @@ def main():
             probe = lines[:]
             probe[i] = merged
             del probe[i + 1:last + 1]
-            new = dict(stdq.extract_clauses('\n'.join(probe), base))
+            new = dict(extract_clauses('\n'.join(probe), base))
             if norm(new.get(no, '')) == norm(have[no]):
                 plan.append({'std': code, 'clause': no, 'line': i + 1, 'last': last + 1,
                              'n_extra': last - i, 'db_len': len(have[no]),

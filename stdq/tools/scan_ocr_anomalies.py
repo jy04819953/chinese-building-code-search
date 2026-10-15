@@ -4,18 +4,18 @@
 闸门规则（命中任一「硬失败」= 入库未完成，退出码 1）：
   * 假名（平/片假名）—— 中文规范里 100% 是 OCR 错
   * 表号被拆行（`…应符合表` + `5.4.1的规定。`）—— 解析器会把表号续行当新条文开头，
-    紧随的**整张表连同该条正文尾部一起不入库**（实测全库 30 条中招）
+    紧随的**整张表连同该条正文尾部一起不入库**（实测：这类会成批出现）
   * 尾部整块粘进条文（content 含 用词说明 / 引用标准名录 / 参考文献）—— 该块不属任何条文；
     解析器 起遇到即停，命中即说明库里残留历史脏数据或解析回归
   * LaTeX 乱码宏 A 类（`\mathfrak`/`\sharp`/`\curlywedge`/`\yen`/`\not\equiv`/`\gtrsim`/`\Xi` 等 12 个）
-    —— 中文规范里语法上就不该出现，与假名同级（立，对照表见 SKILL §2k-2）
+    —— 中文规范里语法上就不该出现，与假名同级（宏清单见本文件顶部）
 告警（不拦入库）：
   * LaTeX 乱码宏 B 类（`\pmb`/`\mathbb`/`\varrho`/`\varpi`/`\Re`/`\infty`）—— 可能有正常用法，须人判
   * 表头/符号变体（同一格出现多种写法，需人判）
   * 表格数字断裂（1,2,3,␀,5 类，多为一格数字被吐掉）
 
 > 库内扫描覆盖 `clauses.content`、`clauses.note`、`clause_chapters.title` 三个字段
-> （note = 条文说明区，补：实测说明区乱码密度不低于正文，此前是盲区）。
+> （note = 条文说明区，补：说明区的乱码密度不低于正文，此前是盲区）。
 
 用法:
   python3 scan_ocr_anomalies.py GB-55037-2022            # 扫该规范（MD + DB 两字段）
@@ -26,7 +26,7 @@
 
 退出码: 0 = 无硬失败（可能含变体/断裂/B 类告警）；1 = 有硬失败（假名 / 表号拆行 / 尾部块粘正文 / LaTeX 乱码宏 A 类）；2 = 用法/环境错误
 
-> 存量口径：全库跑 `--all` 时 A 类命中数是**待办存量**（不是新引入的错，一次实测 1012 处）；
+> 存量口径：全库跑 `--all` 时 A 类命中数是**待办存量**（不是新引入的错，存量可能不少）；
 > 入库**一本新规范**时，该本 A 类必须为 0 才算过闸。
 """
 import json
@@ -35,6 +35,9 @@ import re
 import sqlite3
 import sys
 from ..consts import STANDARDS_DIR
+from ..parser.clauses import extract_clauses, find_body_start
+from ..parser.common import is_doc_tail_head
+from ..parser.notes import is_notes_marker
 
 STDQ_DATA = os.environ.get("STDQ_DATA_DIR", STANDARDS_DIR)
 DB = os.path.join(STDQ_DATA, "standards.db")
@@ -114,7 +117,7 @@ TBL_WORD = re.compile(r"的(?:规定|要求|数值)|采用|确定")
 # = 历史脏数据或解析回归（解析器 起遇到这类标题行即停）。
 TAIL_GLUE = re.compile(r"用词说明|引用标准名录|参考文献")
 
-# ===== LaTeX 宏层面的「符号失真」扫描（立；对照表见 SKILL §2k-2）=====
+# ===== LaTeX 宏层面的「符号失真」扫描（宏清单见本文件顶部）=====
 # A 类（硬失败）：中文规范里语法上就不该出现的宏 —— 与假名同级，命中即拦闸门。
 # B 类（告警不拦）：有可能是正常用法（如积分上限 `^\infty`、`\mathbb{R}`），必须人判。
 # 为什么能自动拦：这些宏在中文规范里没有任何正当用途，出现即代表转换把字符/汉字/公式吃成了宏。
@@ -161,19 +164,6 @@ def latex_hits(text, label, ctxlen=40):
     return hard, soft
 
 
-def _load_stdq():
-    """加载同目录下的 stdq 解析器（判定“续行文字/公式块到底有没有进解析结果”）。找不到返回 None。"""
-    import importlib.util
-    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stdq.py")
-    if not os.path.exists(p):
-        return None
-    spec = importlib.util.spec_from_file_location("stdq_scan", p)
-    m = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(m)
-    except Exception:
-        return None
-    return m
 
 
 def tbl_split_hits(md_text, label):
@@ -195,11 +185,10 @@ def tbl_split_hits(md_text, label):
             cands.append((i, j))
     if not cands:
         return []
-    stdq = _load_stdq()
     parsed = None
-    if stdq is not None:
+    if True:
         try:
-            parsed = ["".join(str(c).split()) for _no, c in stdq.extract_clauses(md_text, label)]
+            parsed = ["".join(str(c).split()) for _no, c in extract_clauses(md_text, label)]
         except Exception:
             parsed = None
     out = []
@@ -217,23 +206,20 @@ def glued_clause_hits(md_text, label):
 
     典型：`…宜设置纵向受拉钢筋。10.3.9厂房柱间支撑的设置和构造，应符合下列要求：`
     解析器只认行首条号（或行中条号后带空格），粘住的这种既不在行首也没空格 ⇒ 整条漏入库
-    （全库实测 12 处、10 本，含 GB 50016 §5.1.9、GB/T 50378 §4.2.9；修法=MD 里把
+    （实测这类会成批出现；修法=MD 里把
     条号拆到自己一行，见 `fix_glued_clause_lines.py`）。
     判据收紧到"编号前必须是句读标点（。；;，,、：:）)）"，避免表格数字/引用误报。
     """
-    stdq = _load_stdq()
-    if stdq is None:
-        return []
     lines = md_text.split("\n")
     try:
         parsed = set()
-        for k, _c in stdq.extract_clauses(md_text, label):
+        for k, _c in extract_clauses(md_text, label):
             parsed.add(k)
     except Exception:
         return []
-    bs = stdq.find_body_start(lines) if hasattr(stdq, "find_body_start") else 0
-    heads = [i for i, l in enumerate(lines) if i >= bs and stdq.is_doc_tail_head(l.strip())]
-    notes = [i for i, l in enumerate(lines) if i >= bs and stdq.is_notes_marker(l)]
+    bs = find_body_start(lines)
+    heads = [i for i, l in enumerate(lines) if i >= bs and is_doc_tail_head(l.strip())]
+    notes = [i for i, l in enumerate(lines) if i >= bs and is_notes_marker(l)]
     end = min(heads + notes) if (heads or notes) else len(lines)
     # 假阳性过滤（实测踩到：附录注里的产品等级「12.5级密封材料」被当条号）：
     #   ① 编号的**上级前缀**必须在本本里真实存在（§10.3.9 → 需有 10.3.x；「12.5级」→ 本本无 12.x ⇒ 排除）
@@ -265,18 +251,15 @@ def formula_gaps(md_text, label):
     （典型 `$$式中：$V^{-}$——设计调蓄容积$(m^{3})$$H\cdot$——…`，一行里嵌了公式和符号说明）。
     这一项只告警不拦入库（那类畸形块要人工/重转，拦了会把整本规范卡在闸门外）。
     """
-    stdq = _load_stdq()
-    if stdq is None:
-        return []
     lines = md_text.split("\n")
     try:
-        parsed = ["".join(str(c).split()) for _n, c in stdq.extract_clauses(md_text, label)]
+        parsed = ["".join(str(c).split()) for _n, c in extract_clauses(md_text, label)]
     except Exception:
         return []
     allp = "\n".join(parsed)
-    bs = stdq.find_body_start(lines) if hasattr(stdq, "find_body_start") else 0
-    heads = [i for i, l in enumerate(lines) if i >= bs and stdq.is_doc_tail_head(l.strip())]
-    notes = [i for i, l in enumerate(lines) if i >= bs and stdq.is_notes_marker(l)]
+    bs = find_body_start(lines)
+    heads = [i for i, l in enumerate(lines) if i >= bs and is_doc_tail_head(l.strip())]
+    notes = [i for i, l in enumerate(lines) if i >= bs and is_notes_marker(l)]
     end = min(heads + notes) if (heads or notes) else len(lines)
     out = []
     for i, l in enumerate(lines):
@@ -449,7 +432,7 @@ def main():
             for g in glued[:20]:
                 print(f"  {g['where']}  {g['ctx']}")
         if latex_hard:
-            print(f"\n🔴 LaTeX 乱码宏 A 类（硬闸门未过：中文规范里语法上不该出现，对照表见 SKILL §2k-2）"
+            print(f"\n🔴 LaTeX 乱码宏 A 类（硬闸门未过：中文规范里语法上不该出现，宏清单见本文件顶部）"
                   f"共 {len(latex_hard)} 处，最多列 30 处:")
             for h in latex_hard[:30]:
                 print(f"  {h['where']}  {h['macro']}  ← {h['why']}")
@@ -460,7 +443,7 @@ def main():
             for g in fgap[:15]:
                 print(f"  {g['where']}  {g['ctx']}")
         if latex_soft:
-            print(f"\n⚠️ LaTeX 宏 B 类告警（可能有正常用法，人判；对照表见 SKILL §2k-2）"
+            print(f"\n⚠️ LaTeX 宏 B 类告警（可能有正常用法，人判；宏清单见本文件顶部）"
                   f"共 {len(latex_soft)} 处，最多列 15 处:")
             for h in latex_soft[:15]:
                 print(f"  {h['where']}  {h['macro']}  ← {h['why']}")
@@ -473,7 +456,7 @@ def main():
             print(f"\n⚠️ 表格数字断裂告警（1,2,3,␀,5 类，多为一格数字被吐掉）共 {len(seq)} 行，最多列 20 行:")
             for q in seq[:20]:
                 print(f"  {q['where']}  {q['row']}")
-        print("\n修法：假名/变体见 §2k；LaTeX 乱码宏 A/B 类 → 走 §2q 批量 SOP（子代理产清单 → 回 PDF 逐字核 → apply_symbol_fixes.py）；"
+        print("\n修法：假名/变体 → 按本文件顶部的清单人工核对后批量替换；LaTeX 乱码宏 A/B 类 → 先产清单，再回原 PDF 逐字核对后批量替换；"
               "表号拆行 → 同目录 fix_table_swallow.py；"
               "条号粘在行尾 → 同目录 fix_glued_clause_lines.py（把条号拆到自己一行）；"
               "尾部块 → trim_doc_tail.py。公式符号必须核 PDF，禁猜。")

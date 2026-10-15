@@ -2,7 +2,7 @@
 """一次性回填脚本:给 standards.db 里所有已有规范补全 clause_chapters 表。
 
 用法:
-    ~/.local/share/stdq-venv/bin/python3 scripts/backfill_chapters.py [--dry-run]
+    python -m stdq.tools.backfill_chapters.py [--dry-run]
 
 逻辑:
     1. 读 standards 表所有 (code, md_file)
@@ -221,7 +221,7 @@ def main():
         entries = parse_toc(md_text)
         if not entries:
             # 目录段抽 0 条的静默失败兜底——交叉看正文标题还能不能恢复
-            # 注意:术语标准(消防词汇/术语标准)无传统目录,parse_toc 抽 0 是正常(走 §5.2 正文节标题),不告警
+            # 注意:术语标准(消防词汇/术语标准)无传统目录,parse_toc 抽 0 是正常(走正文里的节标题),不告警
             is_term = bool(re.search(r'消防词汇|术语标准', os.path.basename(md_file) or ''))
             body = extract_chapters_from_body(md_text)
             n_chap = sum(1 for x in body if x[2] == 'chapter')

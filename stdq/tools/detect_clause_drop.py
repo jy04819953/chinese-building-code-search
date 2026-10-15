@@ -9,11 +9,11 @@
 - Bug #1: LaTeX 公式结尾紧接下一条文号同行
 - Bug #2: 条文号行同时含 <table> 起始
 
-用法(通用化:支持 STDQ_VENV 覆盖;默认走 ~/.local/share/stdq-venv):
-    STDQ_VENV=/path/to/venv/bin/python3 detect_clause_drop.py /path/to/规范.md
-    或直接: ~/.local/share/stdq-venv/bin/python3 \
-              scripts/detect_clause_drop.py \
-              JGJ*.md
+用法（在仓库根目录下运行）:
+
+    python -m stdq.tools.detect_clause_drop <规范.md> [更多.md ...]
+
+不传路径只打印用法，不报错也不检测。多本可一次传多个路径。
 
 本脚本只用 stdlib,任何 Python 3 解释器都能跑。
 
@@ -39,7 +39,7 @@ def detect(path):
 
     # Bug #0: 条文号内部带空格（OCR/MinerU 常见）
     # 扩形态：原正则要求「每个点后都带空格」(2. 0. 17)，漏检另外三种，
-    # 导致全库 12 条术语条文静默丢失且 check 只报跳号、不报根因。三种形态：
+    # 导致术语条文静默丢失，且跳号检查只报跳号、不报根因。三种形态：
     #   形态A/B 空格出现在点前后：2. 0. 17  /  2.0. 17  /  2. 1.17
     #           —— 正常行文不会出现这种写法，不限于标题行
     #   形态C   末节数字被空格拆开：2.0.1 0  /  2.1.1 1

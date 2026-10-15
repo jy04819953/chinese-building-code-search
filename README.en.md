@@ -31,7 +31,7 @@ Querying is largely solved (vector stores, full-text search and RAG frameworks a
 | Parse whatever the converter produced and hope | **Assess quality before ingesting**: clause-number glue detection, clause-by-clause reconciliation between Markdown and DB, OCR character screening as a hard gate, gap check with automatic classification (act only on true misses) |
 | Store clause text only | **Store by structure**: clauses / explanatory notes / tables / terms / appendices in separate tables, notes retrievable separately from text |
 | No idea which clauses are mandatory | **Mandatory vs "strict" clauses distinguished** (decided from the official announcement wording, not guessed from words like "must") |
-| No idea which category a code belongs to | **Two-way classification**: building type (residential / public / industrial / general — usable as a search filter) + discipline (13 themes, used as a ranking signal) |
+| No idea which category a code belongs to | **Two-way classification**: building type (residential / public / industrial / general — usable as a search filter) + discipline (13 themes, taggable and countable) |
 | Inventory maintained by hand | **Index inventory generated automatically**: rewritten on every build, with clause counts, mandatory counts and disciplines |
 | Old and new editions mixed together | **Supersession is queryable**: repeal statements in the new edition's announcement are parsed into the DB, and fully superseded old editions are no longer recalled |
 
@@ -106,14 +106,14 @@ Missing a tier makes the engine weaker, never unusable — it prints one line to
 ## Tests
 
 ```bash
-python -m unittest discover -s tests -t .     # 27 cases, ~1 minute
+python -m unittest discover -s tests -t .     # 32 cases, ~1 minute
 ```
 
 Covers parsing (clauses / notes / table of contents / mandatory flags), indexing (counts, idempotency, chapter titles, empty directory), search (recall, filtering, degraded mode), CLI behaviour, and daemon start / stop / fallback. Everything runs against the fictional samples in `examples/`.
 
 ## When something is off
 
-`tools/` holds pre- and post-ingest QA and repair scripts (reconciliation, clause-number continuity, OCR character screening, several Markdown repairs). Run them in the order described in `tools/README.md`.
+`stdq/tools/` holds pre- and post-ingest QA and repair scripts (reconciliation, clause-number continuity, OCR character screening, several Markdown repairs). Run them in the order described in [`stdq/tools/README.md`](stdq/tools/README.md).
 
 ## Layout
 
@@ -122,7 +122,7 @@ stdq/            engine (parser / db / search / cli / daemon)
 stdq/tools/      QA and repair scripts (not on the query path)
 examples/        three fictional sample standards
 deploy/          systemd unit template
-tests/           27 test cases
+tests/           32 test cases
 ```
 
 ## Build your own index
@@ -155,16 +155,18 @@ stdq abolished      # clauses superseded by newer editions
 | `list` / `info <code>` | Index inventory / per-code detail |
 | `search <query>` | Search (uses the daemon when running, local otherwise) |
 | `clause <code> <no>` | Fetch one clause (add `--no-note` to drop the note) |
-| `strong [code]` | Mandatory clauses |
+| `strong <code>` | Mandatory clauses |
 | `term <code> [kw]` | Term lookup |
 | `appendix <code>` | Appendix entries |
 | `catalog` | Regenerate the index inventory |
 | `term <code> <term>` | Term lookup |
 | `appendix <code>` | Appendices |
 | `catalog` | Write the index inventory as Markdown |
-| `abolished` | Superseded clauses |
+| `abolished <code>` | Superseded clauses in that code |
 | `profession set/list` | Discipline tagging |
+| `compare <topic> <codeA> <codeB>` | Compare two codes |
 | `embed-build` | Compute clause embeddings |
+| `embed-info` | Embedding index status |
 | `daemon start/stop/status` | Resident process (recommended) |
 
 ## FAQ
