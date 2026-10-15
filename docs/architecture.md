@@ -9,7 +9,7 @@ Markdown 规范
    ▼   db.py            入库：SQLite 单文件 + FTS 全文索引 + 章节目录
    ▼   search.py        检索：召回 → 排序（全部质量逻辑在这里）
    ▼   cli.py           命令：stdq <子命令>
-   ▼   daemon.py        常驻：只是让模型留在内存里（可选）
+   ▼   daemon.py        常驻：让模型留在内存里（日常使用需起）
 ```
 
 `tools/` 不在查询路径上，是入库前后按需跑的质检与修复脚本。

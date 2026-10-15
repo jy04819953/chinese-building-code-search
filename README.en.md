@@ -19,12 +19,15 @@ Every hit carries its **clause number, mandatory-clause flag (强条) and explan
 ## Quick start
 
 ```bash
-pip install -e .                       # base install: keyword search only
+pip install -e ".[embed]"              # base + semantic deps (keyword-only: pip install -e .)
 
 export STDQ_DATA_DIR=~/.stdq
 mkdir -p "$STDQ_DATA_DIR/standards"
 cp examples/sample-standards/*.md "$STDQ_DATA_DIR/standards/"
-stdq rebuild                           # scan MD → parse → load into SQLite
+
+stdq rebuild                           # build the index from your Markdown
+stdq embed-build                       # compute clause embeddings
+stdq daemon start -d                   # start the resident process — you need this, see below
 
 stdq list                              # what is in the index
 stdq search "疏散安全出口"              # search
@@ -32,32 +35,30 @@ stdq clause SAMPLE-10001-2026 3.1.1    # fetch one clause (with its note)
 stdq strong SAMPLE-10001-2026          # mandatory clauses only
 ```
 
-Queries are usually Chinese (that is the corpus language); the engine, flags and output format are language-agnostic.
+## The resident process (you need to run it)
 
-## Run the daemon (strongly recommended)
+Searching needs an embedding model (~1 GB). **This setup needs a resident process**: the model is loaded once and every later query just computes.
 
-Searching needs an embedding model (~1 GB). **Without the daemon, every query loads that model from scratch** — a cost you pay on every single query:
+It works without it, but then **every query reloads the model from scratch** — far, far slower:
 
 | Single query | Time (measured on the 96-clause sample index) |
 |---|---|
-| Without the daemon | **13.3 s** (model reloaded each time) |
-| With the daemon | **0.15 s** |
+| Without the resident process | **13.3 s** (model reloaded each time) |
+| With it | **0.15 s** |
 
-(The very first load takes minutes depending on the machine; the numbers above are with the model already in the OS page cache.)
+(The very first load takes minutes depending on the machine; the figures above are with the model already in the OS page cache.)
 
-The bigger your index and the more you query, the less tolerable that cost becomes — **"type a command, get the answer" is only possible with the daemon**:
+So the cost of not running it is not "can I use it" but **waiting on every single query** — worse the bigger your index and the more often you query. "Type a command, get the answer" requires the resident process.
 
 ```bash
-pip install -e ".[embed]"     # numpy + sentence-transformers
-stdq embed-build             # compute clause embeddings
-stdq daemon start -d         # start resident process (model loaded once)
+stdq daemon start -d         # start (model loaded once)
 stdq daemon status           # pid / ready / socket
 stdq daemon stop
 ```
 
 For boot persistence use `deploy/stdq-daemon.service` (a systemd template with the three places to edit marked).
 
-> **Retrieval quality does not depend on the daemon**: all recall and ranking logic lives in the library (`stdq/search.py`) and both paths call the same function, so results are identical. The daemon only fixes speed — but that is a 90× difference.
+> **Retrieval quality is independent of it**: all recall and ranking logic lives in the library (`stdq/search.py`) and both paths call the same function, so results are identical. It fixes **speed** — and the speed difference is large (table above).
 
 ## Dependency tiers
 
@@ -145,8 +146,8 @@ stdq abolished      # clauses superseded by newer editions
 
 ## FAQ
 
-**Do I have to run the daemon?**
-**Strongly recommended.** It works without it, and the results are identical, but every query then reloads the embedding model (measured above: 13.3 s vs 0.15 s). The more you query, the less tolerable that gets. Install it if you want instant answers.
+**Can I skip the resident process?**
+Yes, but every query then reloads the embedding model — **far, far slower** (measured: 13.3 s vs 0.15 s). For day-to-day use, running it is the standard setup: start it right after installing.
 
 **The semantic dependencies won't install / don't work?**
 The engine still runs — LIKE recall and BM25 ranking work without them; you only lose semantic ranking and the chapter boost.
