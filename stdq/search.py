@@ -450,7 +450,7 @@ def load_bm25_index():
         c.execute('SELECT id, content FROM clauses')
         for cid, content in c.fetchall():
             _feed(cid, content)
-    # （公开版只索引规范条文的 content；解读库/错题库不在范围内）
+    # （只索引规范条文的 content）
 
     _bm25_df = df
     _bm25_doc_tf = doc_tf

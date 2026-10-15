@@ -62,6 +62,16 @@ After that queries are **sub-second**. For boot persistence use `deploy/stdq-dae
 
 Missing a tier makes the engine weaker, never unusable — it prints one line to stderr and degrades instead of failing.
 
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [`docs/query-guide.md`](docs/query-guide.md) | **Query guide**: commands, the seven-step workflow, how ranking works, output conventions, pitfalls, troubleshooting |
+| [`docs/ingest-sop.md`](docs/ingest-sop.md) | **Ingest manual**: PDF → searchable index, checklist, Markdown format contract, gap repair, completion criteria |
+| [`stdq/tools/README.md`](stdq/tools/README.md) | The 22 bundled tools and the order to run them in |
+| [`docs/architecture.md`](docs/architecture.md) | Layers, module responsibilities, data flow, design decisions |
+| [`docs/data-and-licensing.md`](docs/data-and-licensing.md) | No code text included, contribution rules, license |
+
 ## Tests
 
 ```bash
@@ -115,6 +125,9 @@ stdq abolished      # clauses superseded by newer editions
 | `search <query>` | Search (uses the daemon when running, local otherwise) |
 | `clause <code> <no>` | Fetch one clause (add `--no-note` to drop the note) |
 | `strong [code]` | Mandatory clauses |
+| `term <code> [kw]` | Term lookup |
+| `appendix <code>` | Appendix entries |
+| `catalog` | Regenerate the index inventory |
 | `term <code> <term>` | Term lookup |
 | `appendix <code>` | Appendices |
 | `catalog` | Write the index inventory as Markdown |

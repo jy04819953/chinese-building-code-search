@@ -25,6 +25,23 @@ class TestCli(DataDirMixin):
         out = self.run_cli("clause", "SAMPLE-10001-2026", "99.99.99").stdout
         self.assertIn("未找到", out)
 
+    def test_clause_no_note_hides_note(self):
+        out = self.run_cli("clause", "SAMPLE-10001-2026", "3.1.1", "--no-note").stdout
+        self.assertIn("安全出口", out)
+        self.assertNotIn("📝", out, "--no-note 时不应出现说明行")
+
+    def test_clause_shows_note_by_default(self):
+        self.assertIn("📝", self.run_cli("clause", "SAMPLE-10001-2026", "3.1.1").stdout)
+
+    def test_catalog(self):
+        self.assertIn("清单", self.run_cli("catalog").stdout)
+
+    def test_term(self):
+        self.assertIn("术语", self.run_cli("term", "SAMPLE-10001-2026").stdout)
+
+    def test_appendix(self):
+        self.assertIn("附录", self.run_cli("appendix", "SAMPLE-10001-2026").stdout)
+
     def test_help_works(self):
         self.assertIn("usage", self.run_cli("--help").stdout.lower())
 

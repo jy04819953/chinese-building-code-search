@@ -44,6 +44,8 @@ def main():
     args = ap.parse_args()
 
     import numpy as np
+    if not os.path.exists(os.path.join(EMB_DIR, 'ids.npy')):
+        sys.exit(f'✋ 还没生成向量文件（{EMB_DIR}）；先跑 `stdq embed-build`')
     ids = np.load(os.path.join(EMB_DIR, 'ids.npy'))
     emb = np.load(os.path.join(EMB_DIR, 'embeddings.npy'))
     idx = {int(v): i for i, v in enumerate(ids)}

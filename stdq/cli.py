@@ -79,18 +79,48 @@ def cmd_abolished(args):
     return results
 
 def cmd_clause(args):
+    """取单条原文（连带该条的说明）。"""
     with get_db() as db:
         c = db.cursor()
         std = _normalize_std_code(args.std)
-        c.execute('''SELECT std_code, clause_no, content FROM clauses
+        c.execute('''SELECT std_code, clause_no, content, has_note, note FROM clauses
                      WHERE std_code LIKE ? AND clause_no = ?''',
                   (f'%{std}%', args.clause))
-        results = c.fetchall()
-    for r in results:
-        if len(r) > 3 and r[3]:
-            r[3] = [(list(img) + ['pending'] if (not img[4] or len(img[4]) < 50)
-                     else img) for img in r[3]]
-    return results
+        return c.fetchall()
+
+
+def cmd_catalog(args):
+    """重新生成在库清单（catalog.md）。"""
+    from .catalog import refresh_catalog
+    refresh_catalog()
+    print('✅ 已重写在库清单')
+    return 0
+
+
+def cmd_term(args):
+    """术语查询：查某本规范的术语条目（术语标准或规范里的术语章）。"""
+    with get_db() as db:
+        c = db.cursor()
+        std = _normalize_std_code(args.std)
+        sql = 'SELECT clause_no, content FROM clauses WHERE std_code LIKE ?'
+        params = [f'%{std}%']
+        if getattr(args, 'keyword', None):
+            sql += ' AND content LIKE ?'
+            params.append(f'%{args.keyword}%')
+        sql += ' ORDER BY clause_no LIMIT 60'
+        c.execute(sql, params)
+        return c.fetchall()
+
+
+def cmd_appendix(args):
+    """查看某本规范的附录条目（附录X / A.1 这类编号）。"""
+    with get_db() as db:
+        c = db.cursor()
+        std = _normalize_std_code(args.std)
+        c.execute('''SELECT clause_no, content FROM clauses
+                     WHERE std_code LIKE ? AND (clause_no LIKE '附录%' OR clause_no GLOB '[A-Z]*')
+                     ORDER BY clause_no LIMIT 80''', (f'%{std}%',))
+        return c.fetchall()
 
 def cmd_info(args):
     with get_db() as db:
@@ -198,6 +228,7 @@ def main():
     p_abolished.add_argument('std')
     
     p_clause = sub.add_parser('clause')
+    p_clause.add_argument('--no-note', action='store_true', dest='no_note', help='不显示该条的条文说明')
     p_clause.add_argument('std')
     p_clause.add_argument('clause')
     
@@ -222,6 +253,12 @@ def main():
     p_daemon_sub.add_parser('status', help='查看状态')
 
     sub.add_parser('list')
+    sub.add_parser('catalog', help='重新生成在库清单（catalog.md）')
+    p_term = sub.add_parser('term', help='术语查询（术语标准或术语章）')
+    p_term.add_argument('std')
+    p_term.add_argument('keyword', nargs='?', help='可选：按关键词过滤')
+    p_apx = sub.add_parser('appendix', help='查看某本规范的附录条目')
+    p_apx.add_argument('std')
     sub.add_parser('embed-build')
     sub.add_parser('embed-info')
 
@@ -355,7 +392,6 @@ def main():
             print('  ⚠️ jieba 未安装，规范库搜索不可用')
         except Exception as e:
             print(f'  ⚠️ 规范库搜索出错: {e}')
-        # 否则 --standard/--interp/--error 开关失效 + 默认三库模式解读/错题重复显示
     elif args.command == 'compare':
         results = cmd_compare(args)
         for std, clauses in results.items():
@@ -409,6 +445,26 @@ def main():
         for r in results:
             print(f'  {fmt_std(r[0])} §{r[1]}')
             print(f'  {r[2]}')
+            if not getattr(args, 'no_note', False) and len(r) > 4 and r[4]:
+                print(f'  📝 说明: {r[4]}')
+    elif args.command == 'catalog':
+        cmd_catalog(args)
+    elif args.command == 'term':
+        rows = cmd_term(args)
+        if not rows:
+            print(f'❌ {args.std} 里没有匹配的术语条目')
+        else:
+            print(f'── {fmt_std(args.std)} 术语条目（{len(rows)} 条）──')
+            for no, content in rows:
+                print(f'  §{no}  {content[:110]}')
+    elif args.command == 'appendix':
+        rows = cmd_appendix(args)
+        if not rows:
+            print(f'❌ {args.std} 里没有附录条目')
+        else:
+            print(f'── {fmt_std(args.std)} 附录（{len(rows)} 条）──')
+            for no, content in rows:
+                print(f'  §{no}  {content[:110]}')
     elif args.command == 'info':
         cmd_info(args)
     elif args.command == 'list':

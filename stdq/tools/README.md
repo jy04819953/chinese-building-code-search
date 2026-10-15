@@ -1,6 +1,7 @@
 # tools/ — 配套工具
 
-按需运行的运维/质检脚本，不属于日常查询路径。统一用法：`python -m stdq.tools.<名字> [参数]`（都支持 `--help`）。
+按需运行的运维/质检脚本，不属于日常查询路径。统一用法：`python -m stdq.tools.<名字> [参数]`。带 argparse 的可加 `--help` 看用法；
+少数只接文件路径的脚本（`detect_clause_drop` / `fix_concat_headers` / `mineru_postprocess` / `postprocess_md`）**直接读源码顶部的用法说明**——给它们 `--help` 会被当成文件路径。
 
 > 先预演、看清差异、再写盘：改 MD 的脚本默认 dry-run，只有 `--apply` 才落盘；落盘前自动备份。
 

@@ -59,6 +59,16 @@ stdq daemon stop
 
 缺哪一层只是**能力弱一点，不会不能用**——缺依赖时会在 stderr 说一句然后降级，不报错退出。
 
+## 文档
+
+| 文档 | 内容 |
+|---|---|
+| [`docs/query-guide.md`](docs/query-guide.md) | **查询手册**：命令速查、七步工作流、检索是怎么排出来的、输出规范、踩坑清单、故障排查 |
+| [`docs/ingest-sop.md`](docs/ingest-sop.md) | **入库手册**：从 PDF 到可检索库的逐项清单、MD 格式契约、跳号修复、完成标准 |
+| [`stdq/tools/README.md`](stdq/tools/README.md) | 22 个配套工具清单与推荐使用顺序 |
+| [`docs/architecture.md`](docs/architecture.md) | 分层、模块职责、数据流、几个设计决定 |
+| [`docs/data-and-licensing.md`](docs/data-and-licensing.md) | 不含规范原文的说明、贡献要求、许可 |
+
 ## 测试
 
 ```bash
@@ -110,8 +120,11 @@ stdq abolished      # 废止条文（老规范被新版替代的）
 | `rebuild` | 建库（扫 `$STDQ_DATA_DIR/standards/*.md`） |
 | `list` / `info <号>` | 在库清单 / 单本详情 |
 | `search <词>` | 检索（默认走常驻进程，没有就本地算） |
-| `clause <号> <条文号>` | 取条文原文（`--no-note` 可去说明） |
+| `clause <号> <条文号>` | 取条文原文（`--no-note` 去说明） |
 | `strong [号]` | 强条清单 |
+| `term <号> [关键词]` | 术语查询 |
+| `appendix <号>` | 附录条目 |
+| `catalog` | 重新生成在库清单 |
 | `term <号> <术语>` | 术语查询 |
 | `appendix <号>` | 附录 |
 | `catalog` | 生成在库清单 Markdown |

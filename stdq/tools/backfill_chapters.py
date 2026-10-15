@@ -26,7 +26,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 from ..parser.toc import parse_toc  # noqa: E402
 
-DB_PATH = os.path.expanduser('standards.db')
+DB_PATH = os.path.join(STANDARDS_DIR, 'standards.db')
 
 
 # 正文 ## 标题提取(只读探测层)。用途:目录段(parse_toc)抽 0 条或异常少时,
@@ -129,7 +129,7 @@ def main():
 
     # --validate 模式:跑校对 pipeline,产出报告
     if args.validate:
-        from stdq import validate_chapter_tree
+        from ..parser.toc import validate_chapter_tree
         # 取所有有 chapters 行的规范
         cur.execute("SELECT DISTINCT std_code FROM clause_chapters ORDER BY std_code")
         std_codes = [r[0] for r in cur.fetchall()]

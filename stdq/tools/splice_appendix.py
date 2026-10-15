@@ -54,6 +54,9 @@ def region(lines):
 
 
 def main():
+    if set(sys.argv[1:]) & {'-h', '--help'}:
+        print('用法: python -m stdq.tools.splice_appendix <规范号> <新附录MD> [--apply]')
+        raise SystemExit(0)
     code = sys.argv[1] if len(sys.argv) > 1 else None
     new_md = sys.argv[2] if len(sys.argv) > 2 else None
     APPLY = '--apply' in sys.argv

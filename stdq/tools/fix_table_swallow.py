@@ -16,7 +16,6 @@
   python3 fix_table_swallow.py --apply    # 写盘（备份 MD + UPDATE 库 content，id 不变 + FTS rebuild + WAL checkpoint）
 """
 import argparse
-import importlib.util
 import json
 import os
 import re
@@ -26,7 +25,6 @@ import sys
 from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
 from ..consts import STANDARDS_DIR as DATA_DIR
 
 DB = os.path.join(str(DATA_DIR), "standards.db")
@@ -36,11 +34,6 @@ OUT = "/tmp/table_swallow_plan.json"
 SPLIT = re.compile(r"^#{0,6}\s*(\d{1,2}\.\d{1,2}(?:-\d+)?(?:\.\d{1,2})?)(?=[^\s\d.．])")
 
 
-def load_stdq():
-    spec = importlib.util.spec_from_file_location("stdq", os.path.join(HERE, "stdq.py"))
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
 
 
 def norm(s):
@@ -51,7 +44,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
     args = ap.parse_args()
-    stdq = load_stdq()
+    from ..parser.clauses import extract_clauses  # noqa: E402
     con = sqlite3.connect(DB, isolation_level=None)
     cur = con.cursor()
     mds = dict(cur.execute("select code, md_file from standards").fetchall())
@@ -89,8 +82,8 @@ def main():
         probe = lines[:]
         probe[p] = lines[p].rstrip() + re.sub(r"^#{1,6}\s*", "", lines[k].strip())   # 去续行前的 ## 
         del probe[k]
-        old_parse = dict(stdq.extract_clauses(text, base))
-        new_parse = dict(stdq.extract_clauses("\n".join(probe), base))
+        old_parse = dict(extract_clauses(text, base))
+        new_parse = dict(extract_clauses("\n".join(probe), base))
         n_new, n_old = norm(new_parse.get(no, "")), norm(old_parse.get(no, ""))
         item = {
             "std": code, "clause": no, "id": cid, "md": mdf,
@@ -149,7 +142,7 @@ def main():
                 del lines[k2]
                 n_merged += 1
             open(mdf, "w", encoding="utf-8").write("\n".join(lines))
-            fresh = dict(stdq.extract_clauses("\n".join(lines), os.path.basename(mdf)))
+            fresh = dict(extract_clauses("\n".join(lines), os.path.basename(mdf)))
             n_upd = 0
             for it in items:
                 newc = fresh.get(it["clause"])

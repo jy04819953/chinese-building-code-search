@@ -115,7 +115,7 @@ def _collect_catalog_data():
     except Exception as e:
         print(f'  [catalog] 读规范库失败:{e}', file=sys.stderr)
 
-    # （公开版只有规范库；解读库/错题库/图集不在范围内）
+    # （只有规范库）
     return data
 
 
