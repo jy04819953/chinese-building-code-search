@@ -20,26 +20,18 @@ Every hit carries its **clause number, mandatory-clause flag (强条) and explan
 
 ### Ingest — where the real difficulty is
 
-Querying is largely solved (vector stores, full-text search and RAG frameworks all do it). **The hard part is turning Chinese building codes into a *correct* clause index** — conversion quality determines retrieval quality, and if ingest is wrong, no amount of search sophistication will find the clause.
+Querying is largely solved (vector stores, full-text search and RAG frameworks all do it). **The hard part is turning Chinese building codes into a searchable, trustworthy, structured clause index** — conversion quality determines retrieval quality; if ingest is wrong, no amount of search sophistication will find the clause.
 
-Everything below was hit for real and has a tool behind it (see `stdq/tools/`):
+| The usual approach | With stdq |
+|---|---|
+| Parse whatever the converter produced and hope | **Assess quality before ingesting**: clause-number glue detection, clause-by-clause reconciliation between Markdown and DB, OCR character screening as a hard gate, gap check with automatic classification (act only on true misses) |
+| Store clause text only | **Store by structure**: clauses / explanatory notes / tables / terms / appendices in separate tables, notes retrievable separately from text |
+| No idea which clauses are mandatory | **Mandatory vs "strict" clauses distinguished** (decided from the official announcement wording, not guessed from words like "must") |
+| No idea which category a code belongs to | **Two-way classification**: building type (residential / public / industrial / general — usable as a search filter) + discipline (13 themes, used as a ranking signal) |
+| Inventory maintained by hand | **Index inventory generated automatically**: rewritten on every build, with clause counts, mandatory counts and disciplines |
+| Old and new editions mixed together | **Supersession is queryable**: repeal statements in the new edition's announcement are parsed into the DB, and fully superseded old editions are no longer recalled |
 
-| Common defect in converted files | If ignored | What this project does |
-|---|---|---|
-| Clause number glued to the end of the previous sentence | The whole clause is dropped; its text is counted into the previous one | Glue detection → line-split repair → DB + embedding sync (`fix_glued_clause_lines` → `apply_glued_fix`) |
-| Clause number followed directly by numeric text (`11.1.8250m…`) | Parsed as a longer number → that clause number disappears | Gap check with automatic classification, act only on true misses (`stdq_check`) |
-| Table caption split across lines | The continuation is read as a new clause → the whole table **and** the clause tail are lost | Table-swallow detection and repair (`fix_table_swallow`) |
-| Clause split by blank lines | The build stops at the blank line → only the first half is stored | Truncated-clause repair (`fix_truncated_clauses`), with backup and post-check |
-| Next chapter heading glued into the previous clause | Headings inside clause text, inflated counts | Heading-glue repair + three-way impact check (`heading_glue_fix` / `three_way_heading_check`) |
-| Five-level clause numbers truncated to four | Numbers **overwrite each other**; totals look fine while text vanishes | Clause-by-clause reconciliation between Markdown and DB (`verify_md_vs_db`) |
-| OCR confuses look-alike characters (Japanese kana inside Chinese codes) | Garbage lands in clause text **and chapter titles**, the latter feeding search ranking | OCR character screening as a **hard gate** (`scan_ocr_anomalies`), scanning both Markdown and DB |
-| Terminology standards have a completely different shape | Parsed as normal codes → clause count collapses | Decide by **filename** + a dedicated extraction path (7 format variants) |
-| Appendices live in their own region with letter numbering | Appendix entries are unsearchable | Appendix extraction + cross-check + back-fill without a rebuild |
-| Image references no longer match the files (extension changed, folder dropped) | Every reference dangles — **while clause parsing still looks perfectly fine** | Reference count vs actual file count comparison |
-| Supersession ("this edition is repealed") is natural language | The old edition is never hidden | Announcement-pattern parsing into the `abolished` table, plus a documented manual fallback |
-| One file holds clause text, notes, tables, terms, appendices | Flattened into one field → notes can't be separated from text | Separate tables for clauses / notes / chapter titles |
-
-None of these are theoretical: each one has a failure behind it, and `docs/ingest-sop.md` is the operational checklist written from them.
+How each class of problem is **detected, judged and repaired**: see [`docs/ingest-sop.md`](docs/ingest-sop.md) and [`stdq/tools/README.md`](stdq/tools/README.md).
 
 ## Quick start
 
