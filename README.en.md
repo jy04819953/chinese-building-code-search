@@ -34,9 +34,18 @@ stdq strong SAMPLE-10001-2026          # mandatory clauses only
 
 Queries are usually Chinese (that is the corpus language); the engine, flags and output format are language-agnostic.
 
-## Make it fast (recommended: run the daemon)
+## Run the daemon (strongly recommended)
 
-Searching needs an embedding model (~1 GB). **Loading it on every query takes minutes**, so keep it resident:
+Searching needs an embedding model (~1 GB). **Without the daemon, every query loads that model from scratch** — a cost you pay on every single query:
+
+| Single query | Time (measured on the 96-clause sample index) |
+|---|---|
+| Without the daemon | **13.3 s** (model reloaded each time) |
+| With the daemon | **0.15 s** |
+
+(The very first load takes minutes depending on the machine; the numbers above are with the model already in the OS page cache.)
+
+The bigger your index and the more you query, the less tolerable that cost becomes — **"type a command, get the answer" is only possible with the daemon**:
 
 ```bash
 pip install -e ".[embed]"     # numpy + sentence-transformers
@@ -46,11 +55,9 @@ stdq daemon status           # pid / ready / socket
 stdq daemon stop
 ```
 
-After that queries are **sub-second**. For boot persistence use `deploy/stdq-daemon.service` (a systemd template with the three places to edit marked).
+For boot persistence use `deploy/stdq-daemon.service` (a systemd template with the three places to edit marked).
 
-**The daemon is optional.** Results are identical either way — all recall and ranking logic lives in the library (`stdq/search.py`); the daemon only keeps the model in memory. Without it, each query loads the model first.
-
-> After starting, wait until `stdq daemon status` reports the socket connectable (or `stdq_daemon.ready` appears in the data directory) before querying.
+> **Retrieval quality does not depend on the daemon**: all recall and ranking logic lives in the library (`stdq/search.py`) and both paths call the same function, so results are identical. The daemon only fixes speed — but that is a 90× difference.
 
 ## Dependency tiers
 
@@ -139,7 +146,7 @@ stdq abolished      # clauses superseded by newer editions
 ## FAQ
 
 **Do I have to run the daemon?**
-No. With it, queries are sub-second; without it, each query loads the model first. **Results are the same.**
+**Strongly recommended.** It works without it, and the results are identical, but every query then reloads the embedding model (measured above: 13.3 s vs 0.15 s). The more you query, the less tolerable that gets. Install it if you want instant answers.
 
 **The semantic dependencies won't install / don't work?**
 The engine still runs — LIKE recall and BM25 ranking work without them; you only lose semantic ranking and the chapter boost.
