@@ -1,5 +1,7 @@
 # stdq — clause-level search for Chinese building codes
 
+**Other languages:** [中文](README.md)　·　this file is the English version
+
 Turn **Chinese building-code Markdown** into a clause-level searchable index:
 jieba tokenisation + LIKE recall + chapter-title query expansion + BM25 fusion + bge semantic ranking.
 
@@ -90,6 +92,8 @@ For boot persistence use `deploy/stdq-daemon.service` (a systemd template with t
 Missing a tier makes the engine weaker, never unusable — it prints one line to stderr and degrades instead of failing.
 
 ## Documentation
+
+> All documents under `docs/` are written in Chinese.
 
 | Document | Contents |
 |---|---|
