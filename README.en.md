@@ -3,6 +3,8 @@
 Turn **Chinese building-code Markdown** into a clause-level searchable index:
 jieba tokenisation + LIKE recall + chapter-title query expansion + BM25 fusion + bge semantic ranking.
 
+Built for the Chinese code system specifically — clause numbering (`X.Y.Z`), mandatory clauses (强条), explanatory notes, the GB / GB-T / JGJ / DG-TJ code families, and announcement-based supersession records.
+
 Every hit carries its **clause number, mandatory-clause flag (强条) and explanatory note** — readable by people, and usable as a retrieval layer under an LLM.
 
 > `examples/sample-standards/` contains three **entirely fictional** sample standards used to demonstrate the pipeline. No real code text ships with this repository.
