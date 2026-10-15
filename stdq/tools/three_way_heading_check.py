@@ -10,25 +10,21 @@
   · 旧解析 != 新解析 != 库  → 本次改动的正影响面：库内容仍带粘连 → 写 new
 输出 /tmp/three_way.json + 摘要
 """
-import importlib.util
 import json
 import os
 import re
 import sqlite3
 import sys
+from ..parser import clauses as stdq
+from ..parser import common as _stdq_common
 from ..consts import STANDARDS_DIR
+stdq._is_clause_number = _stdq_common._is_clause_number
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-DB = 'standards.db'
+
+DB = os.path.join(STANDARDS_DIR, 'standards.db')
 HEAD = re.compile(r'^#{1,6}\s')
 
 
-def load_stdq():
-    spec = importlib.util.spec_from_file_location('stdq', os.path.join(HERE, 'stdq.py'))
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
 
 
 def norm(s):
@@ -71,7 +67,6 @@ def make_collector(stdq, skip_hash):
 
 
 def main():
-    stdq = load_stdq()
     old_coll, new_coll = make_collector(stdq, False), make_collector(stdq, True)
     con = sqlite3.connect(DB, isolation_level=None)
     cur = con.cursor()

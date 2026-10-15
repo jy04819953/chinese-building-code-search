@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""把「下一章标题 ## X 章名 被粘进上一条条文正文」修掉
+"""heading_glue_fix.py — 把「下一章标题 ## X 章名 被粘进上一条条文正文」修掉
 
 背景：extract_clauses 的子条款收集 _collect_subitems 会跳过 '## ' 行判断（只拦 h1 '# '），
       于是 '## 9 文化、纪念建筑' 这类标题行被当成"续行"并进上一条条文 → 全库 ~365 条受污染。
@@ -12,7 +12,6 @@
 用法：--dry-run（默认，只出报告） / --apply（写库，写前自动备份）
 """
 import argparse
-import importlib.util
 import json
 import os
 import re
@@ -21,20 +20,17 @@ import sqlite3
 import sys
 import time
 from datetime import datetime
+from ..parser import clauses as stdq
+from ..parser import common as _stdq_common
 from ..consts import STANDARDS_DIR
+stdq._is_clause_number = _stdq_common._is_clause_number
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-DB = 'standards.db'
+
+DB = os.path.join(STANDARDS_DIR, 'standards.db')
 OUT = '/tmp/heading_fix.json'
 HEAD = re.compile(r'^#{1,6}\s')
 
 
-def load_stdq():
-    spec = importlib.util.spec_from_file_location('stdq', os.path.join(HERE, 'stdq.py'))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
 
 
 def norm(s):
@@ -79,7 +75,6 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--apply', action='store_true')
     args = ap.parse_args()
-    stdq = load_stdq()
     con = sqlite3.connect(DB, isolation_level=None)
     cur = con.cursor()
 

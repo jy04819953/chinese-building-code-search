@@ -6,25 +6,21 @@
    分组输出：dup（extra 在别处有 → 可安全替换） / orphan（extra 别处没有 → 需人工看）
 用法：python3 review_classify.py
 """
-import importlib.util
 import json
 import os
 import re
 import sqlite3
 import sys
+from ..parser import clauses as stdq
+from ..parser import common as _stdq_common
 from ..consts import STANDARDS_DIR
+stdq._is_clause_number = _stdq_common._is_clause_number
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-DB = 'standards.db'
+
+DB = os.path.join(STANDARDS_DIR, 'standards.db')
 HEAD = re.compile(r'^#{1,6}\s')
 
 
-def load_stdq():
-    spec = importlib.util.spec_from_file_location('stdq', os.path.join(HERE, 'stdq.py'))
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
 
 
 def norm(s):
@@ -43,7 +39,6 @@ def common_prefix_suffix(a, b):
 
 
 def main():
-    stdq = load_stdq()
     # 复刻 heading_glue_fix.py 的解析（标题行跳过版）
     def patched_subitems(lines, start_idx):
         subitems = []

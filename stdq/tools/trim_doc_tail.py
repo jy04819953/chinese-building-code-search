@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""剪掉条文内容里粘着的「标准尾部整块」（用词说明 / 引用标准名录 / 参考文献）。
+"""trim_doc_tail.py — 剪掉条文内容里粘着的「标准尾部整块」（用词说明 / 引用标准名录 / 参考文献）。
 
 背景：这些整块不属于任何条文；解析器 起遇到它们的标题行就停（`stdq.RE_DOC_TAIL_HEAD`），
 但**库里历史数据**还粘着（全库曾 58 条 / 52 本，如 GB 50011-2010 §M.3.2 尾粘
@@ -23,7 +23,6 @@
 ⚠️ 编写本类脚本必遵：**外层结果集先 fetchall()**（见 main() 里的注释），否则静默漏扫。
 """
 import argparse
-import importlib.util
 import json
 import os
 import re
@@ -32,9 +31,13 @@ import sqlite3
 import sys
 from datetime import datetime
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-from ..consts import STANDARDS_DIR as DATA_DIR
+from ..consts import STANDARDS_DIR as DATA_DIR  # noqa: E402
+from ..parser import clauses as stdq
+from ..parser import common as _stdq_common
+stdq._is_clause_number = _stdq_common._is_clause_number
+from ..consts import RE_DOC_TAIL_HEAD as _RE_DOC_TAIL_HEAD
+stdq.RE_DOC_TAIL_HEAD = _RE_DOC_TAIL_HEAD
+
 
 DB = os.path.join(str(DATA_DIR), "standards.db")
 
@@ -59,18 +62,12 @@ def tail_is_doc_block(tail: str) -> bool:
     return bool(PLAN_TAIL.match(tail))
 
 
-def load_stdq():
-    spec = importlib.util.spec_from_file_location("stdq", os.path.join(HERE, "stdq.py"))
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
     a = ap.parse_args()
-    stdq = load_stdq()
     con = sqlite3.connect(DB, isolation_level=None)
     cur = con.cursor()
 
