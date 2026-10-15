@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+# 数据目录（库/向量/日志/pid）不入库
+stdq-data/
+*.db
+*.npy
+*.log

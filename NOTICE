@@ -1,0 +1,9 @@
+building-code-search
+Copyright 2026 jy04819953
+
+This product includes the stdq engine: a clause-level search system for Chinese
+building codes (Markdown parsing, SQLite ingestion pipeline, keyword + semantic
+retrieval, and the accompanying quality-check tooling).
+
+The repository contains no standard text, drawing atlases or publishers'
+materials; see docs/data-and-licensing.md.

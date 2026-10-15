@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stdq"
+version = "0.1.0"
+description = "建筑规范条文级检索：把中文规范 Markdown 建成可检索的条文库（Single-file SQLite + jieba + bge 语义排序）"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["jieba>=0.42"]
+
+[project.optional-dependencies]
+# 语义检索（可选）：装了才能跑 embed-build 与语义排序
+embed = ["sentence-transformers>=2.2", "numpy>=1.24"]
+
+[project.scripts]
+stdq = "stdq.cli:main"
+
+[tool.setuptools]
+# 显式列包，避免把 deploy/ 等目录当顶层包
+packages = ["stdq", "stdq.parser"]
