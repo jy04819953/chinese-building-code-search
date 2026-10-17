@@ -203,7 +203,7 @@ def main():
     p_search = sub.add_parser('search')
     p_search.add_argument('query')
     p_search.add_argument('--std')
-    p_search.add_argument('--limit', type=int, default=30)  # 默认 30(与 extras 80/20 联动)
+    p_search.add_argument('--limit', type=int, default=30)  # 默认 30
     p_search.add_argument('--semantic', action='store_true')
     p_search.add_argument('--no-daemon', action='store_true', help='跳过守护进程，直接加载模型')
     p_search.add_argument('--type', choices=['住宅','公建','工业','通用'], help='按建筑类型过滤（仅返回适用于该类型的条文);"通用"等价于不传(=不限类型)')

@@ -413,7 +413,7 @@ def load_bm25_index():
     - df: term -> 文档频率(全库)
     - doc_tf: cid -> {term: tf}
     - doc_len: cid -> 词数
-    供 do_search / _do_extras_search 排序阶段算 BM25 分,与 embedding sims 加权融合。
+    供条文检索排序阶段算 BM25 分,与 embedding sims 加权融合。
 
     ID 空间(扩展规范库):
     - 规范库 clauses.id 正数(18768 条)
