@@ -2,7 +2,7 @@
 from __future__ import annotations
 import os, re, sys, json, sqlite3, argparse, subprocess, time
 
-from .common import is_valid_clause_content, _is_clause_number
+from .common import is_valid_clause_content, _is_clause_number, nz_cmp
 from .term import _looks_like_term_standard, extract_term_clauses
 from .appendix import find_appendix_start, extract_appendix_clauses
 from ..parser.common import is_doc_tail_head
@@ -157,6 +157,43 @@ def extract_clauses(content, filename=''):
             else:
                 current_content = ''
 
+            # 收集紧跟的**普通正文续行/续段**（换行拆句 / 空行分段）。
+            #   老行为：条文正文只取"同行 or 紧邻下一行"，之后只有子条款/公式/表格三条通道，
+            #   普通正文续行毫无收集路径 ⇒ 被硬切断。
+            #   触发收紧：仅当当前内容 **≥12 字**且**未以句末/停顿标点收尾**（说明被切断）才启动。
+            #   停止边界：下一条号 / # 标题 / 表格 / 表·续表 / 图 / 注： / $$ / 引用块 / 说明区标记。
+            #   空行最多跨 1 个；续行 <6 字且无标点视为标题/标记 → 停。
+            if current_content and len(current_content) >= 12 and not re.search(r'[。；;：:！？、，,）)】]\s*$', current_content):
+                # 起点恒为 i+1，**在循环里跳过"已经在内容中的行"**：
+                #   标题形态会把"下一行"也收进 current_content，不去重就会重复收一份。
+                _rj = i + 1
+                _rex, _rblank = [], 0
+                while _rj < len(lines):
+                    _rl = lines[_rj].strip()
+                    if nz_cmp(_rl) and nz_cmp(current_content).endswith(nz_cmp(_rl)):
+                        _rj += 1          # 该行已在内容里 → 跳过，不算续行
+                        continue
+                    if not _rl:
+                        _rblank += 1
+                        if _rblank > 1:
+                            break
+                        _rj += 1
+                        continue
+                    if (re.match(r'^(?:#{1,6}\s+)?(?:第\s*)?\d{1,2}\.\d{1,2}(?:\.\d{1,2}){0,3}', _rl)
+                            or _rl.startswith('#') or _rl.startswith('<table>') or _rl.startswith('表 ')
+                            or _rl.startswith('续表') or _rl.startswith('注：') or _rl.startswith('注:')
+                            or _rl.startswith('$$') or _rl.startswith('图') or _rl.startswith('![')
+                            or _rl.startswith('>')
+                            or re.match(r'^#?\s*(条文说明|起草说明|编制说明|制订说明)', _rl)):
+                        break
+                    if len(_rl) < 6 and not _rl.endswith(('。', '；', '：')):
+                        break
+                    _rex.append(_rl)
+                    _rj += 1
+                    _rblank = 0
+                if _rex:
+                    current_content = current_content.rstrip() + '\n' + '\n'.join(_rex)
+
             # 修: 术语章(第2章)的"编号+术语名"行,定义另起一段。
             # 原逻辑只在"同行无内容"时才看下一行,而术语行同行就有术语名 → 后面的定义被跳过,
             # 会导致大量术语定义丢失(只存词名,释义没进库)。
@@ -262,6 +299,26 @@ def extract_clauses(content, filename=''):
                     j += 1
                 if table_parts:
                     current_content = current_content + '\n' + '\n'.join(table_parts)
+
+                # **2 段编号 + 短标题 = 节标题，不入条文表**。
+                #   规范结构是 章(X) → 节(X.Y) → 条(X.Y.Z)。MD 里的节标题写成
+                #   `## 3.1城市道路`，会被当成"编号+正文"收进条文表，形成空壳条
+                #   （查 §3.1 只返回「城市道路」四个字，挡住真正条文）。
+                #   章节标题本应由 clause_chapters 承担（参与召回加权），这里丢弃即可。
+                #   ⚠️ 判据必须放在"内容全部收集完成之后"—— 放在收集之前按首句判断，
+                #   会把"首句短、正文在后"的真条文误丢。
+                #   五条同时满足才丢（保守，防误删）：
+                #     ① 编号恰好 2 段 ② 完整内容 ≤40 字 ③ 不含 ≥5 个连续英文字母
+                #     （术语条目要留；`MPa`/`HFC` 缩写不算）
+                #     ④ 不含"下列/以下/如下/应满足"（后接子条款的引导句是真条文）
+                #     ⑤ 不含 <table>（"节标题+缩略语表"属内容）
+                if clause_no.count('.') == 1 and current_content and len(current_content.strip()) <= 40 \
+                        and not re.search(r'[A-Za-z]{5,}', current_content) \
+                        and not re.search(r'(下列|以下|如下|应满足)', current_content) \
+                        and '<table>' not in current_content:
+                    i += 1
+                    continue
+
                 clauses.append((clause_no, current_content))
         
         i += 1

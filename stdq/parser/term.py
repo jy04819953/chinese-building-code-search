@@ -1,7 +1,8 @@
 """parser · term —— 公开版（逻辑搬运自生产实现）"""
 from __future__ import annotations
 import os, re, sys, json, sqlite3, argparse, subprocess, time
-from ..consts import _GLUED_TERM_RE, _TERM_HEAD_RE, _TERM_LINE_RE, _TERM_NUM_ONLY_RE
+from ..consts import (_GLUED_TERM_RE, _TERM_HEAD_RE, _TERM_LINE_RE, _TERM_NUM_ONLY_RE,
+                      _TERM_LINE_RE_V2, _TERM_GENERAL_RE)
 
 
 from .common import is_doc_tail_head
@@ -67,9 +68,38 @@ def extract_term_clauses(content):
             break
     i = body_start
 
+    # 术语本的「N 总则」条文在 body_start（术语章）**之前**，主循环扫不到；
+    #   而条文说明区里又有同名条号（说明文字会被当成总则条文收进库）。
+    #   所以这里单独扫 [0, 说明区起点) ∩ [0, body_start)。
+    #   目次行（`附：条文说明…………(41)`）不算说明区起点 —— 它含 `…`。
+    _notes_at = len(lines)
+    for _idx, _l in enumerate(lines):
+        _s = _l.strip()
+        if '条文说明' in _s[:30] and '…' not in _s:
+            _notes_at = _idx
+            break
+    for _idx in range(0, min(body_start, _notes_at)):
+        _s = lines[_idx].strip()
+        _mg = _TERM_GENERAL_RE.match(_s)
+        if not _mg:
+            continue
+        _num, _body = _mg.group(1), _mg.group(2).strip()
+        _defs, _k = [], _idx + 1
+        while _k < body_start and _k < _notes_at:
+            _tt = lines[_k].strip()
+            if not _tt:
+                _k += 1
+                continue
+            if _tt.startswith('#') or _TERM_GENERAL_RE.match(_tt):
+                break
+            _defs.append(_tt)
+            _k += 1
+        terms.append((_num, _body + ('\n' + ' '.join(_defs) if _defs else '')))
+
     def _is_terminal(t):
         """判断一行是否是术语边界(新术语行/编号行/章节标题)"""
         return bool(_TERM_LINE_RE.match(t) or _GLUED_TERM_RE.match(t)
+                    or _TERM_LINE_RE_V2.match(t)
                     or _TERM_NUM_ONLY_RE.match(t)
                     or _TERM_HEAD_RE.match(t)
                     or re.match(r'^#+\s*\d+\s*[术语通]', t))
@@ -83,6 +113,8 @@ def extract_term_clauses(content):
         m = _TERM_LINE_RE.match(s)
         if not m:
             m = _GLUED_TERM_RE.match(s)
+        if not m:
+            m = _TERM_LINE_RE_V2.match(s)   # 兜底（原版匹配不上时才用，避免改变已有切分）
         if m:
             num, term, eng = m.group(1), m.group(2), m.group(3).strip()
             # 收集定义行: 术语行后到下一个边界

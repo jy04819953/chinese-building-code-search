@@ -7,6 +7,7 @@ dist/
 venv/
 # 数据目录（库/向量/日志/pid）不入库
 stdq-data/
+.demo-data/
 *.db
 *.npy
 *.log
